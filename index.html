@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>helpThem — Never let a wallet get stuck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0D12;
+    --surface:#12161D;
+    --surface-2:#1B212B;
+    --border:#242B36;
+    --text:#EDEFF3;
+    --text-dim:#8B93A1;
+    --text-faint:#565F6E;
+    --empty:#FF5F4D;
+    --mid:#FFB020;
+    --full:#00E5A0;
+    --usdc:#2775CA;
+    --radius:14px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px;}
+  :focus-visible{outline:2px solid var(--full);outline-offset:3px;}
+
+  /* background texture */
+  .grain{
+    position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.035;
+    background-image:radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+    background-size:22px 22px;
+  }
+  .glow{
+    position:fixed;top:-20%;left:50%;transform:translateX(-50%);
+    width:900px;height:900px;border-radius:50%;
+    background:radial-gradient(circle, rgba(0,229,160,.09), rgba(255,95,77,.05) 45%, transparent 70%);
+    pointer-events:none;z-index:0;filter:blur(40px);
+  }
+
+  /* nav */
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(10,13,18,.75);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:66px;}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.01em;}
+  .logo .dot{width:9px;height:9px;border-radius:50%;background:var(--full);box-shadow:0 0 10px var(--full);}
+  .nav-links{display:flex;gap:34px;font-size:14px;color:var(--text-dim);}
+  .nav-links a:hover{color:var(--text);}
+  .nav-cta{
+    font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:99px;
+    background:var(--text);color:var(--bg);
+  }
+  @media(max-width:760px){.nav-links{display:none;}}
+
+  section{position:relative;z-index:1;}
+
+  /* hero */
+  .hero{padding:96px 0 70px;}
+  .hero-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:56px;align-items:center;}
+  @media(max-width:900px){.hero-grid{grid-template-columns:1fr;}}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12.5px;color:var(--text-dim);
+    border:1px solid var(--border);padding:6px 13px;border-radius:99px;
+    margin-bottom:26px;font-family:'JetBrains Mono',monospace;
+  }
+  .eyebrow .pulse{width:6px;height:6px;border-radius:50%;background:var(--full);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .hero h1{
+    font-size:clamp(36px,5vw,58px);line-height:1.06;font-weight:600;letter-spacing:-.02em;
+    margin-bottom:22px;
+  }
+  .hero h1 .accent{
+    background:linear-gradient(90deg,var(--empty),var(--mid) 55%,var(--full));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero p.sub{font-size:17px;color:var(--text-dim);max-width:480px;line-height:1.6;margin-bottom:34px;}
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;}
+  .btn{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:15px;
+    padding:14px 26px;border-radius:11px;border:none;cursor:pointer;
+    transition:transform .15s ease, opacity .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn-primary{background:var(--full);color:#04150F;}
+  .btn-primary:hover{opacity:.9;}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--text-faint);}
+
+  /* gauge - signature element */
+  .gauge-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;
+    padding:34px 30px 30px;position:relative;
+  }
+  .gauge-label-row{display:flex;justify-content:space-between;font-size:12px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;margin-bottom:18px;}
+  .gauge-wrap{position:relative;height:150px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:10px;}
+  svg.gauge{width:260px;height:150px;overflow:visible;}
+  .gauge-track{fill:none;stroke:var(--surface-2);stroke-width:16;stroke-linecap:round;}
+  .gauge-fill{fill:none;stroke-linecap:round;stroke-width:16;
+    stroke-dasharray:326; stroke-dashoffset:326;
+    transition:stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1), stroke 1.4s ease;
+  }
+  .gauge-needle-label{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);text-align:center;}
+  .gauge-amount{font-family:'Space Grotesk';font-size:30px;font-weight:600;}
+  .gauge-status{font-size:12.5px;color:var(--text-dim);margin-top:2px;font-family:'JetBrains Mono',monospace;}
+  .gauge-btn{
+    width:100%;margin-top:14px;padding:12px;border-radius:10px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font-weight:600;font-size:13.5px;cursor:pointer;
+    font-family:'Inter';transition:background .2s;
+  }
+  .gauge-btn:hover{background:#232B37;}
+  .gauge-btn:disabled{opacity:.5;cursor:default;}
+
+  /* section headers */
+  .sec-head{max-width:560px;margin-bottom:52px;}
+  .sec-eyebrow{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--full);letter-spacing:.04em;margin-bottom:14px;}
+  .sec-head h2{font-size:clamp(26px,3.4vw,38px);font-weight:600;letter-spacing:-.015em;line-height:1.15;}
+  .sec-head p{color:var(--text-dim);font-size:15.5px;margin-top:14px;line-height:1.6;}
+
+  /* problem */
+  .problem{padding:90px 0;border-top:1px solid var(--border);}
+  .quote-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media(max-width:700px){.quote-grid{grid-template-columns:1fr;}}
+  .quote{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px 24px;font-size:15.5px;color:var(--text-dim);position:relative;
+  }
+  .quote::before{content:'"';position:absolute;top:8px;left:16px;font-size:34px;color:var(--empty);opacity:.35;font-family:'Space Grotesk';}
+  .quote span{position:relative;display:block;padding-left:14px;color:var(--text);}
+  .then-row{margin-top:30px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:var(--text-faint);font-size:13.5px;font-family:'JetBrains Mono',monospace;}
+  .then-row .step{background:var(--surface-2);border:1px solid var(--border);padding:6px 13px;border-radius:99px;}
+
+  /* flow */
+  .flow{padding:90px 0;border-top:1px solid var(--border);}
+  .flow-row{display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:center;margin-top:10px;}
+  .flow-node{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:20px 22px;min-width:130px;text-align:center;
+  }
+  .flow-node .ic{font-size:22px;margin-bottom:8px;}
+  .flow-node .lbl{font-family:'Space Grotesk';font-weight:600;font-size:14.5px;}
+  .flow-node .sub{font-size:11.5px;color:var(--text-faint);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+  .flow-node.end{border-color:var(--full);box-shadow:0 0 24px -8px var(--full);}
+  .flow-arrow{color:var(--text-faint);font-size:20px;padding:0 14px;}
+  @media(max-width:700px){.flow-arrow{transform:rotate(90deg);padding:8px 0;}.flow-row{flex-direction:column;}}
+  .oneclick{text-align:center;margin-top:36px;font-family:'JetBrains Mono',monospace;color:var(--text-faint);font-size:13px;}
+
+  /* demo */
+  .demo{padding:90px 0;border-top:1px solid var(--border);}
+  .demo-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;
+    padding:36px;max-width:640px;margin:0 auto;
+  }
+  .demo-tabs{display:flex;gap:8px;margin-bottom:26px;background:var(--surface-2);padding:4px;border-radius:11px;}
+  .demo-tab{flex:1;text-align:center;padding:9px;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--text-dim);}
+  .demo-tab.active{background:var(--bg);color:var(--text);}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:7px;font-family:'JetBrains Mono',monospace;}
+  .field input, .field select{
+    width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:12px 14px;border-radius:9px;font-size:14.5px;font-family:'JetBrains Mono',monospace;
+  }
+  .field input:focus, .field select:focus{border-color:var(--full);}
+  .chain-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .chain-chip{
+    padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2);
+    font-size:13px;cursor:pointer;color:var(--text-dim);font-family:'JetBrains Mono',monospace;
+  }
+  .chain-chip.sel{border-color:var(--full);color:var(--full);background:rgba(0,229,160,.08);}
+  .demo-out{
+    margin-top:22px;padding:18px;border-radius:12px;background:var(--surface-2);
+    border:1px dashed var(--border);display:none;
+  }
+  .demo-out.show{display:block;}
+  .demo-out .link{font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--full);word-break:break-all;}
+  .demo-status{margin-top:14px;font-size:13px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:8px;}
+  .spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--full);animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* features */
+  .features{padding:90px 0;border-top:1px solid var(--border);}
+  .feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  @media(max-width:900px){.feat-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.feat-grid{grid-template-columns:1fr;}}
+  .feat{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:24px 20px;
+  }
+  .feat .ic{
+    width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:var(--surface-2);font-size:18px;margin-bottom:16px;
+  }
+  .feat h3{font-size:15.5px;font-weight:600;margin-bottom:8px;}
+  .feat p{font-size:13.5px;color:var(--text-dim);line-height:1.55;}
+
+  /* stats */
+  .stats{padding:80px 0;border-top:1px solid var(--border);}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:center;}
+  @media(max-width:700px){.stat-grid{grid-template-columns:1fr;}}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:34px 20px;}
+  .stat .num{font-family:'Space Grotesk';font-size:44px;font-weight:700;background:linear-gradient(90deg,var(--full),#7CF5C9);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat .lbl{color:var(--text-dim);font-size:13.5px;margin-top:6px;font-family:'JetBrains Mono',monospace;}
+
+  /* arc positioning */
+  .arc{padding:90px 0;border-top:1px solid var(--border);}
+  .arc-card{
+    background:linear-gradient(160deg, rgba(39,117,202,.10), var(--surface) 55%);
+    border:1px solid var(--border);border-radius:20px;padding:44px;
+  }
+  .arc-card h2{font-size:clamp(24px,3vw,32px);margin-bottom:16px;max-width:600px;}
+  .arc-card p{color:var(--text-dim);font-size:15.5px;line-height:1.7;max-width:640px;}
+  .arc-card .tag{
+    display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--usdc);
+    border:1px solid rgba(39,117,202,.4);padding:5px 12px;border-radius:99px;margin-bottom:18px;
+  }
+
+  /* cta */
+  .final-cta{padding:110px 0 120px;text-align:center;border-top:1px solid var(--border);}
+  .final-cta h2{font-size:clamp(28px,4vw,44px);font-weight:600;letter-spacing:-.02em;margin-bottom:18px;}
+  .final-cta p{color:var(--text-dim);font-size:16px;margin-bottom:34px;}
+  .email-row{display:flex;gap:10px;max-width:420px;margin:0 auto;flex-wrap:wrap;justify-content:center;}
+  .email-row input{
+    flex:1;min-width:220px;background:var(--surface);border:1px solid var(--border);color:var(--text);
+    padding:14px 16px;border-radius:11px;font-size:14.5px;
+  }
+  .email-msg{margin-top:14px;font-size:13px;color:var(--full);font-family:'JetBrains Mono',monospace;min-height:16px;}
+
+  footer{border-top:1px solid var(--border);padding:36px 0;}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+  footer .f-left{color:var(--text-faint);font-size:13px;}
+  footer .f-links{display:flex;gap:22px;font-size:13px;color:var(--text-dim);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="glow"></div>
+
+<nav>
+  <div class="wrap">
+    <div class="logo"><span class="dot"></span>helpThem</div>
+    <div class="nav-links">
+      <a href="#problem">Problem</a>
+      <a href="#flow">How it works</a>
+      <a href="#demo">Try it</a>
+      <a href="#features">Features</a>
+    </div>
+    <a href="#demo" class="nav-cta">Need Gas</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow"><span class="pulse"></span>powered by USDC on Arc</div>
+      <h1>No wallet should get<br>stuck because it ran<br>out of <span class="accent">gas</span>.</h1>
+      <p class="sub">You have USDC. You don't have ETH, SOL, or MATIC. helpThem turns any USDC on Arc into native gas on any chain — in one click, no manual bridging.</p>
+      <div class="cta-row">
+        <a href="#demo" class="btn btn-primary">Need Gas →</a>
+        <a href="#flow" class="btn btn-ghost">How it works</a>
+      </div>
+    </div>
+
+    <div class="gauge-card">
+      <div class="gauge-label-row"><span>WALLET STATUS</span><span class="mono">0x7f3...9a2</span></div>
+      <div class="gauge-wrap">
+        <svg class="gauge" viewBox="0 0 220 130">
+          <path class="gauge-track" d="M20,120 A90,90 0 0,1 200,120"/>
+          <path id="heroFill" class="gauge-fill" d="M20,120 A90,90 0 0,1 200,120" style="stroke:var(--empty)"/>
+        </svg>
+        <div class="gauge-needle-label">
+          <div class="gauge-amount" id="heroAmount">0.0000</div>
+          <div class="gauge-status" id="heroStatus">EMPTY — needs rescue</div>
+        </div>
+      </div>
+      <button class="gauge-btn" id="heroBtn" onclick="runHeroDemo()">Simulate Rescue</button>
+    </div>
+  </div>
+</section>
+
+<section class="problem" id="problem">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">// THE PROBLEM</div>
+      <h2>Everyone in Web3 has hit this wall.</h2>
+      <p>Funds are right there. They're just trapped in the wrong token, on the wrong chain.</p>
+    </div>
+    <div class="quote-grid">
+      <div class="quote"><span>"I have USDC but no ETH."</span></div>
+      <div class="quote"><span>"I have tokens but can't swap them."</span></div>
+      <div class="quote"><span>"Ran out of gas mid-mint."</span></div>
+      <div class="quote"><span>"Bridge failed — no native token to pay for it."</span></div>
+    </div>
+    <div class="then-row">
+      so you end up:
+      <span class="step">asking a friend</span>
+      <span class="step">buying tokens</span>
+      <span class="step">moving off an exchange</span>
+      <span class="step">bridging manually</span>
+      <span class="step" style="color:var(--empty);border-color:var(--empty)">10 minutes later, for $0.20 of gas</span>
+    </div>
+  </div>
+</section>
+
+<section class="flow" id="flow">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">// THE SOLUTION</div>
+      <h2>helpThem</h2>
+      <p>The sender only needs USDC on Arc. The recipient picks the destination chain. Everything else happens automatically, out of sight.</p>
+    </div>
+    <div class="flow-row">
+      <div class="flow-node"><div class="ic">💵</div><div class="lbl">USDC</div><div class="sub">on Arc</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="ic">🌉</div><div class="lbl">Bridge</div><div class="sub">via CCTP</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="ic">🔄</div><div class="lbl">Swap</div><div class="sub">to native token</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node end"><div class="ic">⛽</div><div class="lbl">Gas</div><div class="sub">delivered</div></div>
+    </div>
+    <div class="oneclick">all of the above happens in one click — the recipient never sees a bridge</div>
+  </div>
+</section>
+
+<section class="demo" id="demo">
+  <div class="wrap">
+    <div class="sec-head" style="margin-left:auto;margin-right:auto;text-align:center;">
+      <div class="sec-eyebrow" style="text-align:center;">// TRY IT</div>
+      <h2>Rescue a wallet in one click</h2>
+      <p style="margin-left:auto;margin-right:auto;">This is a working preview of the flow — no real funds move here.</p>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-tabs">
+        <div class="demo-tab active" id="tabNeed" onclick="switchTab('need')">I need gas</div>
+        <div class="demo-tab" id="tabHelp" onclick="switchTab('help')">Help someone</div>
+      </div>
+
+      <div id="needPanel">
+        <div class="field">
+          <label>YOUR WALLET ADDRESS</label>
+          <input type="text" id="walletInput" placeholder="0x7f3a...9a2c" value="0x7f3a1b9C4dE8821f3A0Cb9a2">
+        </div>
+        <div class="field">
+          <label>DESTINATION CHAIN</label>
+          <div class="chain-row" id="chainRow">
+            <div class="chain-chip sel" data-chain="ETH">ETH</div>
+            <div class="chain-chip" data-chain="SOL">SOL</div>
+            <div class="chain-chip" data-chain="Base">Base</div>
+            <div class="chain-chip" data-chain="Arbitrum">Arbitrum</div>
+            <div class="chain-chip" data-chain="Polygon">Polygon</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="generateLink()">Generate rescue link</button>
+
+        <div class="demo-out" id="linkOut">
+          <div style="font-size:12px;color:var(--text-faint);margin-bottom:6px;">SHARE THIS WITH WHOEVER CAN HELP</div>
+          <div class="link" id="linkText"></div>
+        </div>
+      </div>
+
+      <div id="helpPanel" style="display:none;">
+        <div style="background:var(--surface-2);border-radius:12px;padding:20px;margin-bottom:18px;">
+          <div style="font-size:12px;color:var(--text-faint);margin-bottom:8px;">SYAHRUL NEEDS</div>
+          <div style="font-family:'Space Grotesk';font-size:26px;font-weight:600;">0.0008 ETH <span style="color:var(--text-dim);font-size:15px;font-weight:400;">≈ $3.12</span></div>
+          <div style="font-size:12.5px;color:var(--text-faint);margin-top:4px;">to unstick a pending transaction on Ethereum</div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="runHelp()">Help Them — pay with USDC on Arc</button>
+        <div class="demo-status" id="helpStatus" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">// BEYOND THE RESCUE</div>
+      <h2>Small features that make it feel effortless.</h2>
+    </div>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="ic">📱</div>
+        <h3>Emergency QR</h3>
+        <p>When a wallet runs dry, generate a QR on the spot. Scan to send — no copying addresses.</p>
+      </div>
+      <div class="feat">
+        <div class="ic">🧮</div>
+        <h3>Gas Calculator</h3>
+        <p>Estimates exactly what a transfer, swap, or NFT mint needs on the target chain — never send too much.</p>
+      </div>
+      <div class="feat">
+        <div class="ic">📊</div>
+        <h3>Gas History</h3>
+        <p>Track every wallet, builder, and chain you've rescued. A small stat that makes helping feel good.</p>
+      </div>
+      <div class="feat">
+        <div class="ic">🙌</div>
+        <h3>Thank You Card</h3>
+        <p>A shareable card generated after every rescue. Free marketing, one grateful tweet at a time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap">
+    <div class="stat-grid">
+      <div class="stat"><div class="num" data-target="18">0</div><div class="lbl">BUILDERS RESCUED</div></div>
+      <div class="stat"><div class="num" data-target="42">0</div><div class="lbl">WALLETS UNSTUCK</div></div>
+      <div class="stat"><div class="num" data-target="11">0</div><div class="lbl">CHAINS COVERED</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="arc">
+  <div class="wrap">
+    <div class="arc-card">
+      <div class="tag">◆ ARC = UNIVERSAL PAYMENT LAYER</div>
+      <h2>helpThem is built on Arc — and every rescue starts there.</h2>
+      <p>Whether the destination is Ethereum, Solana, Base, or Arbitrum, the rescue always begins as USDC on Arc. For us, that makes Arc the starting liquidity point for cross-chain gas.</p>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <div class="wrap">
+    <h2>Never let a wallet get stuck again.</h2>
+    <p>helpThem is in early build. Get notified when rescues go live.</p>
+    <div class="email-row">
+      <input type="email" id="emailInput" placeholder="you@wallet.eth">
+      <button class="btn btn-primary" onclick="joinWaitlist()">Join waitlist</button>
+    </div>
+    <div class="email-msg" id="emailMsg"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="f-left">helpThem — a rescue layer for USDC on Arc</div>
+    <div class="f-links">
+      <a href="#problem">Problem</a>
+      <a href="#flow">How it works</a>
+      <a href="#demo">Demo</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const CIRC = 283; // approx path length used for dasharray in CSS (326 set generously)
+  function setGauge(fillEl, amountEl, statusEl, pct, amountText, statusText, color){
+    const dash = 326;
+    fillEl.style.stroke = color;
+    fillEl.style.strokeDashoffset = dash - (dash * pct);
+    amountEl.textContent = amountText;
+    statusEl.textContent = statusText;
+    statusEl.style.color = color;
+  }
+
+  let heroRunning = false;
+  function runHeroDemo(){
+    if(heroRunning) return;
+    heroRunning = true;
+    const btn = document.getElementById('heroBtn');
+    const fill = document.getElementById('heroFill');
+    const amt = document.getElementById('heroAmount');
+    const status = document.getElementById('heroStatus');
+    btn.disabled = true;
+    btn.textContent = 'Rescuing…';
+
+    setGauge(fill, amt, status, 0, '0.0000', 'EMPTY — needs rescue', getComputedStyle(document.documentElement).getPropertyValue('--empty'));
+
+    setTimeout(()=>{
+      setGauge(fill, amt, status, .5, '0.0004', 'BRIDGING VIA ARC…', getComputedStyle(document.documentElement).getPropertyValue('--mid'));
+    }, 400);
+
+    setTimeout(()=>{
+      setGauge(fill, amt, status, 1, '0.0008 ETH', 'RESCUED ✓', getComputedStyle(document.documentElement).getPropertyValue('--full'));
+      btn.textContent = 'Rescued — run again';
+      btn.disabled = false;
+      heroRunning = false;
+    }, 1900);
+  }
+
+  function switchTab(tab){
+    document.getElementById('tabNeed').classList.toggle('active', tab==='need');
+    document.getElementById('tabHelp').classList.toggle('active', tab==='help');
+    document.getElementById('needPanel').style.display = tab==='need' ? 'block':'none';
+    document.getElementById('helpPanel').style.display = tab==='help' ? 'block':'none';
+  }
+
+  document.getElementById('chainRow').addEventListener('click', (e)=>{
+    const chip = e.target.closest('.chain-chip');
+    if(!chip) return;
+    document.querySelectorAll('.chain-chip').forEach(c=>c.classList.remove('sel'));
+    chip.classList.add('sel');
+  });
+
+  function generateLink(){
+    const id = Math.random().toString(36).slice(2,8);
+    const chain = document.querySelector('.chain-chip.sel').dataset.chain;
+    const out = document.getElementById('linkOut');
+    const linkText = document.getElementById('linkText');
+    linkText.textContent = `helpthem.xyz/rescue/${id}  (${chain})`;
+    out.classList.add('show');
+  }
+
+  function runHelp(){
+    const status = document.getElementById('helpStatus');
+    status.style.display = 'flex';
+    status.innerHTML = '<span class="spin"></span> Helping…';
+    setTimeout(()=>{
+      status.innerHTML = '✅ Rescued. Syahrul is back online.';
+      status.style.color = 'var(--full)';
+    }, 1600);
+  }
+
+  function joinWaitlist(){
+    const input = document.getElementById('emailInput');
+    const msg = document.getElementById('emailMsg');
+    if(!input.value.includes('@')){
+      msg.textContent = 'Enter a valid email.';
+      msg.style.color = 'var(--empty)';
+      return;
+    }
+    msg.textContent = "You're on the list. We'll ping you at launch.";
+    msg.style.color = 'var(--full)';
+    input.value = '';
+  }
+
+  // count-up stats on scroll into view
+  const statEls = document.querySelectorAll('.stat .num');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        const el = entry.target;
+        const target = parseInt(el.dataset.target,10);
+        let cur = 0;
+        const step = Math.max(1, Math.round(target/30));
+        const timer = setInterval(()=>{
+          cur += step;
+          if(cur >= target){ cur = target; clearInterval(timer); }
+          el.textContent = cur;
+        }, 30);
+        io.unobserve(el);
+      }
+    });
+  }, {threshold:.4});
+  statEls.forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
