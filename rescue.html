@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>helpThem — Rescue (Arc → Sepolia)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0A0D12; --surface:#12161D; --surface-2:#1B212B; --border:#242B36;
+    --text:#EDEFF3; --text-dim:#8B93A1; --text-faint:#565F6E;
+    --empty:#FF5F4D; --mid:#FFB020; --full:#00E5A0; --usdc:#2775CA; --radius:14px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh;
+  }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px;}
+  :focus-visible{outline:2px solid var(--full);outline-offset:3px;}
+
+  .grain{
+    position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.035;
+    background-image:radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+    background-size:22px 22px;
+  }
+  .glow{
+    position:fixed;top:-20%;left:50%;transform:translateX(-50%);
+    width:900px;height:900px;border-radius:50%;
+    background:radial-gradient(circle, rgba(0,229,160,.09), rgba(255,95,77,.05) 45%, transparent 70%);
+    pointer-events:none;z-index:0;filter:blur(40px);
+  }
+
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(10,13,18,.75);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:66px;}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.01em;}
+  .logo .dot{width:9px;height:9px;border-radius:50%;background:var(--full);box-shadow:0 0 10px var(--full);}
+  .nav-links{display:flex;gap:34px;font-size:14px;color:var(--text-dim);}
+  .nav-links a:hover{color:var(--text);}
+  .nav-cta{
+    font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:99px;
+    background:var(--text);color:var(--bg);
+  }
+  @media(max-width:760px){.nav-links{display:none;}}
+
+  section{position:relative;z-index:1;}
+
+  .rescue-page{padding:72px 0 90px;}
+  .sec-head{max-width:560px;margin-bottom:40px;}
+  .sec-eyebrow{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--full);letter-spacing:.04em;margin-bottom:14px;}
+  .sec-head h1{font-size:clamp(28px,3.6vw,40px);font-weight:600;letter-spacing:-.015em;line-height:1.12;}
+  .sec-head p{color:var(--text-dim);font-size:15.5px;margin-top:14px;line-height:1.6;}
+
+  .testnet-badge{
+    display:inline-flex;align-items:center;gap:8px;margin-top:18px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mid);
+    border:1px solid rgba(255,176,32,.35);padding:6px 13px;border-radius:99px;
+  }
+  .testnet-badge .pulse{width:6px;height:6px;border-radius:50%;background:var(--mid);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  .rescue-grid{display:grid;grid-template-columns:1fr 1.05fr;gap:28px;align-items:start;}
+  @media(max-width:900px){.rescue-grid{grid-template-columns:1fr;}}
+
+  .side-stack{display:flex;flex-direction:column;gap:16px;}
+
+  .summary-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;
+  }
+  .summary-card .label{font-size:12px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;margin-bottom:10px;}
+  .summary-card .recipient{
+    font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--full);
+    word-break:break-all;line-height:1.5;
+  }
+  .summary-card .amount-row{
+    margin-top:22px;padding-top:22px;border-top:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  }
+  .summary-card .amount{font-family:'Space Grotesk';font-size:28px;font-weight:600;}
+  .summary-card .chain-tag{
+    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);
+    background:var(--surface-2);border:1px solid var(--border);padding:5px 10px;border-radius:99px;
+  }
+
+  .flow-mini{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;
+  }
+  .flow-mini .title{font-size:12px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;margin-bottom:16px;}
+  .flow-steps{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
+  .flow-step{
+    background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;text-align:center;min-width:88px;
+  }
+  .flow-step .ic{font-size:18px;margin-bottom:4px;}
+  .flow-step .lbl{font-size:12px;font-weight:600;font-family:'Space Grotesk';}
+  .flow-step .sub{font-size:10px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+  .flow-step.active{border-color:var(--full);box-shadow:0 0 20px -8px var(--full);}
+  .flow-arrow{color:var(--text-faint);font-size:16px;}
+
+  .demo-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;
+  }
+  .wallet-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:12px;
+    padding:16px 18px;margin-bottom:22px;
+  }
+  .wallet-row .left{font-size:13px;color:var(--text-dim);}
+  .wallet-row .addr{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--full);margin-top:4px;word-break:break-all;}
+  .wallet-row .addr.empty{color:var(--text-faint);}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:7px;font-family:'JetBrains Mono',monospace;}
+  .field input{
+    width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:12px 14px;border-radius:9px;font-size:14.5px;font-family:'JetBrains Mono',monospace;
+  }
+  .field input:focus{border-color:var(--full);outline:none;}
+  .field .hint{font-size:11.5px;color:var(--text-faint);margin-top:6px;font-family:'JetBrains Mono',monospace;}
+
+  .btn{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:15px;
+    padding:14px 26px;border-radius:11px;border:none;cursor:pointer;
+    transition:transform .15s ease, opacity .15s ease;width:100%;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn:disabled{opacity:.5;cursor:default;transform:none;}
+  .btn-primary{background:var(--full);color:#04150F;}
+  .btn-primary:hover:not(:disabled){opacity:.9;}
+  .btn-ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover:not(:disabled){border-color:var(--text-faint);}
+
+  .log{
+    margin-top:22px;padding:18px;border-radius:12px;background:var(--surface-2);
+    border:1px dashed var(--border);display:none;max-height:280px;overflow-y:auto;
+  }
+  .log.show{display:block;}
+  .log .log-title{font-size:12px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;margin-bottom:10px;}
+  .log-line{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--text-dim);margin-bottom:6px;line-height:1.5;}
+  .status-ok{color:var(--full);}
+  .status-err{color:var(--empty);}
+  .status-warn{color:var(--mid);}
+
+  .spin{
+    display:inline-block;width:12px;height:12px;border-radius:50%;
+    border:2px solid var(--border);border-top-color:var(--full);
+    animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  footer{border-top:1px solid var(--border);padding:36px 0;position:relative;z-index:1;}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+  footer .f-left{color:var(--text-faint);font-size:13px;}
+  footer .f-links{display:flex;gap:22px;font-size:13px;color:var(--text-dim);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="glow"></div>
+
+<nav>
+  <div class="wrap">
+    <a href="index.html" class="logo"><span class="dot"></span>helpThem</a>
+    <div class="nav-links">
+      <a href="index.html#problem">Problem</a>
+      <a href="index.html#flow">How it works</a>
+      <a href="index.html#demo">Try it</a>
+    </div>
+    <a href="index.html" class="nav-cta">← Back home</a>
+  </div>
+</nav>
+
+<section class="rescue-page">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">// LIVE RESCUE</div>
+      <h1>Rescue a wallet with USDC on Arc</h1>
+      <p>Burn USDC on Arc Testnet and auto-mint on Ethereum Sepolia via Circle's CCTP Forwarding Service. Real testnet funds — connect MetaMask to proceed.</p>
+      <div class="testnet-badge"><span class="pulse"></span>Testnet only · Arc → Sepolia</div>
+    </div>
+
+    <div class="rescue-grid">
+      <div class="side-stack">
+        <div class="summary-card">
+          <div class="label">WALLET TO RESCUE</div>
+          <div class="recipient" id="summaryRecipient">—</div>
+          <div class="amount-row">
+            <div>
+              <div class="label" style="margin-bottom:6px;">AMOUNT</div>
+              <div class="amount" id="summaryAmount">2 USDC</div>
+            </div>
+            <div class="chain-tag" id="summaryChain">Sepolia (ETH)</div>
+          </div>
+        </div>
+
+        <div class="flow-mini">
+          <div class="title">// RESCUE FLOW</div>
+          <div class="flow-steps">
+            <div class="flow-step active" id="stepArc"><div class="ic">💵</div><div class="lbl">Burn</div><div class="sub">Arc</div></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" id="stepBridge"><div class="ic">🌉</div><div class="lbl">Bridge</div><div class="sub">CCTP</div></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" id="stepMint"><div class="ic">⛽</div><div class="lbl">Mint</div><div class="sub">Sepolia</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-card">
+        <div class="wallet-row">
+          <div class="left">
+            <div>Your wallet (payer on Arc)</div>
+            <div class="addr empty" id="walletBadge">Not connected</div>
+          </div>
+          <button class="btn btn-ghost" id="connectBtn" onclick="connectWallet()" style="width:auto;padding:10px 18px;font-size:13.5px;">Connect</button>
+        </div>
+
+        <div class="field">
+          <label>RECIPIENT ADDRESS (Sepolia)</label>
+          <input id="recipientInput" placeholder="0x...">
+          <div class="hint">USDC will be minted to this address on Ethereum Sepolia.</div>
+        </div>
+
+        <div class="field">
+          <label>AMOUNT (USDC)</label>
+          <input id="amountInput" value="2" placeholder="2" inputmode="decimal">
+        </div>
+
+        <button class="btn btn-primary" id="rescueBtn" onclick="runRescue()" disabled>Connect wallet first</button>
+
+        <div class="log" id="log">
+          <div class="log-title">// TRANSACTION LOG</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="f-left">helpThem — a rescue layer for USDC on Arc</div>
+    <div class="f-links">
+      <a href="index.html">Home</a>
+      <a href="index.html#flow">How it works</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const ARC_CHAIN_ID_HEX = "0x4CF3D2";
+  const ARC_PARAMS = {
+    chainId: ARC_CHAIN_ID_HEX,
+    chainName: "Arc Testnet",
+    nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+    rpcUrls: ["https://rpc.testnet.arc.network"],
+    blockExplorerUrls: ["https://testnet.arcscan.app"],
+  };
+
+  // Multichain CCTP Configuration
+  const CHAINS = {
+    sepolia: {
+      name: 'Ethereum Sepolia',
+      domain: 0,
+      chainId: "0xAA36A7",
+      rpcUrl: "https://rpc.sepolia.org",
+      blockExplorer: "https://sepolia.etherscan.io",
+    },
+    solana: {
+      name: 'Solana Devnet',
+      domain: 5,
+      chainId: 999,
+      rpcUrl: "https://api.devnet.solana.com",
+      blockExplorer: "https://explorer.solana.com?cluster=devnet",
+    },
+    base: {
+      name: 'Base Sepolia',
+      domain: 6,
+      chainId: "0x14A34",
+      rpcUrl: "https://sepolia.base.org",
+      blockExplorer: "https://sepolia.basescan.org",
+    },
+    arbitrum: {
+      name: 'Arbitrum Sepolia',
+      domain: 3,
+      chainId: "0x66EEE",
+      rpcUrl: "https://sepolia-rpc.arbitrum.io/rpc",
+      blockExplorer: "https://sepolia.arbiscan.io",
+    },
+    polygon: {
+      name: 'Polygon Mumbai',
+      domain: 7,
+      chainId: "0x13881",
+      rpcUrl: "https://rpc-mumbai.maticvigil.com",
+      blockExplorer: "https://mumbai.polygonscan.com",
+    },
+  };
+
+  const ARC_USDC = "0x3600000000000000000000000000000000000000";
+  const TOKEN_MESSENGER_V2 = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA";
+  const ARC_DOMAIN = 26;
+  const FORWARD_HOOK_DATA = "0x636374702d666f72776172640000000000000000000000000000000000000000";
+  const DESTINATION_CALLER = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+  const USDC_ABI = [
+    "function approve(address spender, uint256 amount) returns (bool)",
+    "function allowance(address owner, address spender) view returns (uint256)",
+  ];
+  const TOKEN_MESSENGER_ABI = [
+    "function depositForBurnWithHook(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold, bytes hookData)",
+  ];
+
+  let provider, signer, userAddress;
+
+  const params = new URLSearchParams(window.location.search);
+  const prefilledTo = params.get("to") || "";
+  const prefilledChain = (params.get("chain") || "sepolia").toLowerCase();
+  const prefilledAmount = params.get("amount") || "2";
+
+  const recipientInput = document.getElementById("recipientInput");
+  const amountInput = document.getElementById("amountInput");
+  recipientInput.value = prefilledTo;
+  amountInput.value = prefilledAmount;
+
+  function updateSummary(){
+    const recipient = recipientInput.value.trim();
+    const amount = amountInput.value.trim() || "2";
+    const chainObj = CHAINS[prefilledChain];
+    const chainDisplay = chainObj ? chainObj.name : prefilledChain;
+    
+    document.getElementById("summaryRecipient").textContent = recipient || "—";
+    document.getElementById("summaryAmount").textContent = amount + " USDC";
+    document.getElementById("summaryChain").textContent = chainDisplay;
+  }
+
+  recipientInput.addEventListener("input", updateSummary);
+  amountInput.addEventListener("input", updateSummary);
+  updateSummary();
+
+  // Update flow step label to show destination chain
+  const chainObj = CHAINS[prefilledChain];
+  if(chainObj) {
+    const mintStep = document.getElementById("stepMint");
+    if(mintStep) {
+      const subLabel = mintStep.querySelector(".sub");
+      if(subLabel) subLabel.textContent = chainObj.name.split(" ")[0]; // Just first word (e.g., "Ethereum", "Solana")
+    }
+  }
+
+  function setFlowStep(step){
+    ["stepArc", "stepBridge", "stepMint"].forEach(id => {
+      document.getElementById(id).classList.remove("active");
+    });
+    if(step) document.getElementById(step).classList.add("active");
+  }
+
+  function log(msg, cls){
+    const el = document.getElementById("log");
+    el.classList.add("show");
+    const line = document.createElement("div");
+    line.className = "log-line" + (cls ? " " + cls : "");
+    line.textContent = msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function clearLog(){
+    const el = document.getElementById("log");
+    el.innerHTML = '<div class="log-title">// TRANSACTION LOG</div>';
+    el.classList.remove("show");
+  }
+
+  async function connectWallet(){
+    if(!window.ethereum){
+      alert("MetaMask not found. Install it from metamask.io first.");
+      return;
+    }
+    const connectBtn = document.getElementById("connectBtn");
+    connectBtn.disabled = true;
+    connectBtn.textContent = "Connecting…";
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      try {
+        await window.ethereum.request({ method: "wallet_addEthereumChain", params: [ARC_PARAMS] });
+      } catch (e) { /* already added */ }
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX }] });
+
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner();
+      userAddress = await signer.getAddress();
+
+      const badge = document.getElementById("walletBadge");
+      badge.textContent = userAddress;
+      badge.classList.remove("empty");
+      connectBtn.textContent = "Connected ✓";
+      document.getElementById("rescueBtn").disabled = false;
+      document.getElementById("rescueBtn").textContent = "Rescue Wallet →";
+    } catch (err) {
+      connectBtn.disabled = false;
+      connectBtn.textContent = "Connect";
+      log("Connect error: " + (err.message || err), "status-err");
+    }
+  }
+
+  function toBytes32Address(addr){
+    return "0x000000000000000000000000" + addr.slice(2).toLowerCase();
+  }
+
+  async function runRescue(){
+    const recipient = recipientInput.value.trim();
+    const amountStr = amountInput.value.trim();
+    if(!ethers.isAddress(recipient)){
+      log("Invalid recipient address.", "status-err");
+      return;
+    }
+    if(!amountStr || isNaN(Number(amountStr)) || Number(amountStr) <= 0){
+      log("Enter a valid USDC amount.", "status-err");
+      return;
+    }
+
+    const chainObj = CHAINS[prefilledChain];
+    if(!chainObj){
+      log("Invalid destination chain: " + prefilledChain, "status-err");
+      return;
+    }
+
+    updateSummary();
+    clearLog();
+    setFlowStep("stepArc");
+
+    const rescueBtn = document.getElementById("rescueBtn");
+    rescueBtn.disabled = true;
+    rescueBtn.textContent = "Rescuing…";
+
+    try {
+      const amount = ethers.parseUnits(amountStr, 6);
+      const destDomain = chainObj.domain;
+
+      log(`Fetching fee estimate (Arc → ${chainObj.name})…`);
+      const feeRes = await fetch(`https://iris-api-sandbox.circle.com/v2/burn/USDC/fees/${ARC_DOMAIN}/${destDomain}?forward=true`);
+      const feeData = await feeRes.json();
+      log("Fee response: " + JSON.stringify(feeData));
+
+      let maxFee = 50000n;
+      try {
+        const entry = Array.isArray(feeData) ? feeData[0] : feeData;
+        if (entry?.minimumFee != null) maxFee = BigInt(Math.ceil(Number(entry.minimumFee)));
+      } catch(e) {}
+      log(`Using maxFee: ${maxFee} (6-decimal units)`);
+
+      const usdc = new ethers.Contract(ARC_USDC, USDC_ABI, signer);
+      log("Approving USDC on Arc…");
+      const approveTx = await usdc.approve(TOKEN_MESSENGER_V2, amount + maxFee);
+      log("Approve tx: " + approveTx.hash);
+      await approveTx.wait();
+      log("Approved ✓", "status-ok");
+
+      setFlowStep("stepBridge");
+      const tokenMessenger = new ethers.Contract(TOKEN_MESSENGER_V2, TOKEN_MESSENGER_ABI, signer);
+      log(`Burning USDC on Arc (forward hook to ${chainObj.name})…`);
+      const burnTx = await tokenMessenger.depositForBurnWithHook(
+        amount, destDomain, toBytes32Address(recipient),
+        ARC_USDC, DESTINATION_CALLER, maxFee, 1000, FORWARD_HOOK_DATA
+      );
+      log("Burn tx: " + burnTx.hash);
+      await burnTx.wait();
+      log("Burned ✓ — waiting for Circle to forward mint…", "status-warn");
+
+      setFlowStep("stepMint");
+      let attempts = 0;
+      while (attempts < 40) {
+        await new Promise(r => setTimeout(r, 5000));
+        attempts++;
+        const msgRes = await fetch(`https://iris-api-sandbox.circle.com/v2/messages/${ARC_DOMAIN}?transactionHash=${burnTx.hash}`);
+        if (!msgRes.ok) { log(`…still waiting (${attempts}/40)`); continue; }
+        const msgData = await msgRes.json();
+        const m = msgData?.messages?.[0];
+        if (m?.status === "complete") {
+          log(`Rescued ✓ USDC minted on ${chainObj.name}.`, "status-ok");
+          if (m.forwardTxHash) log(`${chainObj.name} mint tx: ` + m.forwardTxHash, "status-ok");
+          setFlowStep("stepMint");
+          return;
+        }
+        log(`Status: ${m?.status || "pending"} (${attempts}/40)`);
+      }
+      log("Timed out — check burn tx on testnet.arcscan.app", "status-err");
+    } catch (err) {
+      log("Error: " + (err.reason || err.message || err), "status-err");
+    } finally {
+      rescueBtn.disabled = false;
+      rescueBtn.textContent = "Rescue Wallet →";
+    }
+  }
+</script>
+</body>
+</html>

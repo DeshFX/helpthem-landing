@@ -1,0 +1,64 @@
+{
+  "version": 2,
+  "name": "helptem",
+  "buildCommand": "cd cctp-bridge && npm run build || exit 0",
+  "outputDirectory": ".",
+  "framework": "static",
+  "env": {
+    "CIRCLE_API_URL": "https://iris-api-sandbox.circle.com/v2",
+    "NEXT_PUBLIC_ARC_RPC": "https://rpc.testnet.arc.network"
+  },
+  "routes": [
+    {
+      "src": "/(.*\\.(html|css|js|ts|tsx|json|xml|txt|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://iris-api-sandbox.circle.com/v2/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/rescue.html",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}
