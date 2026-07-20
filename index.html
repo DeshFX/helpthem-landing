@@ -181,12 +181,19 @@
     font-size:13px;cursor:pointer;color:var(--text-dim);font-family:'JetBrains Mono',monospace;
   }
   .chain-chip.sel{border-color:var(--full);color:var(--full);background:rgba(0,229,160,.08);}
+  .chain-chip.soon{opacity:.42;cursor:not-allowed;}
+  .chain-chip .live-tag{
+    display:block;font-size:9px;color:var(--full);margin-top:3px;letter-spacing:.04em;
+  }
   .demo-out{
     margin-top:22px;padding:18px;border-radius:12px;background:var(--surface-2);
     border:1px dashed var(--border);display:none;
   }
   .demo-out.show{display:block;}
   .demo-out .link{font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--full);word-break:break-all;}
+  .demo-out .link a{color:var(--full);text-decoration:underline;text-underline-offset:3px;}
+  .demo-out .copy-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .demo-out .copy-row .btn{width:auto;padding:10px 16px;font-size:13px;}
   .demo-status{margin-top:14px;font-size:13px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:8px;}
   .spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--full);animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
@@ -228,16 +235,7 @@
     border:1px solid rgba(39,117,202,.4);padding:5px 12px;border-radius:99px;margin-bottom:18px;
   }
 
-  /* cta */
-  .final-cta{padding:110px 0 120px;text-align:center;border-top:1px solid var(--border);}
-  .final-cta h2{font-size:clamp(28px,4vw,44px);font-weight:600;letter-spacing:-.02em;margin-bottom:18px;}
-  .final-cta p{color:var(--text-dim);font-size:16px;margin-bottom:34px;}
-  .email-row{display:flex;gap:10px;max-width:420px;margin:0 auto;flex-wrap:wrap;justify-content:center;}
-  .email-row input{
-    flex:1;min-width:220px;background:var(--surface);border:1px solid var(--border);color:var(--text);
-    padding:14px 16px;border-radius:11px;font-size:14.5px;
-  }
-  .email-msg{margin-top:14px;font-size:13px;color:var(--full);font-family:'JetBrains Mono',monospace;min-height:16px;}
+  /* cta section removed - waitlist feature deleted */
 
   footer{border-top:1px solid var(--border);padding:36px 0;}
   footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
@@ -344,7 +342,7 @@
     <div class="sec-head" style="margin-left:auto;margin-right:auto;text-align:center;">
       <div class="sec-eyebrow" style="text-align:center;">// TRY IT</div>
       <h2>Rescue a wallet in one click</h2>
-      <p style="margin-left:auto;margin-right:auto;">This is a working preview of the flow — no real funds move here.</p>
+      <p style="margin-left:auto;margin-right:auto;">Generate a rescue link or jump straight into a live testnet rescue — Arc → Sepolia via CCTP.</p>
     </div>
 
     <div class="demo-card">
@@ -361,11 +359,11 @@
         <div class="field">
           <label>DESTINATION CHAIN</label>
           <div class="chain-row" id="chainRow">
-            <div class="chain-chip sel" data-chain="ETH">ETH</div>
-            <div class="chain-chip" data-chain="SOL">SOL</div>
-            <div class="chain-chip" data-chain="Base">Base</div>
-            <div class="chain-chip" data-chain="Arbitrum">Arbitrum</div>
-            <div class="chain-chip" data-chain="Polygon">Polygon</div>
+            <div class="chain-chip sel" data-chain="sepolia">Sepolia</div>
+            <div class="chain-chip" data-chain="solana">Solana</div>
+            <div class="chain-chip" data-chain="base">Base</div>
+            <div class="chain-chip" data-chain="arbitrum">Arbitrum</div>
+            <div class="chain-chip" data-chain="polygon">Polygon</div>
           </div>
         </div>
         <button class="btn btn-primary" style="width:100%;" onclick="generateLink()">Generate rescue link</button>
@@ -373,6 +371,10 @@
         <div class="demo-out" id="linkOut">
           <div style="font-size:12px;color:var(--text-faint);margin-bottom:6px;">SHARE THIS WITH WHOEVER CAN HELP</div>
           <div class="link" id="linkText"></div>
+          <div class="copy-row">
+            <button class="btn btn-ghost" onclick="copyLink(event)">Copy link</button>
+            <a class="btn btn-primary" id="openRescueLink" href="rescue.html" style="display:inline-block;text-align:center;">Open rescue page →</a>
+          </div>
         </div>
       </div>
 
@@ -382,8 +384,8 @@
           <div style="font-family:'Space Grotesk';font-size:26px;font-weight:600;">0.0008 ETH <span style="color:var(--text-dim);font-size:15px;font-weight:400;">≈ $3.12</span></div>
           <div style="font-size:12.5px;color:var(--text-faint);margin-top:4px;">to unstick a pending transaction on Ethereum</div>
         </div>
-        <button class="btn btn-primary" style="width:100%;" onclick="runHelp()">Help Them — pay with USDC on Arc</button>
-        <div class="demo-status" id="helpStatus" style="display:none;"></div>
+        <a class="btn btn-primary" id="helpRescueLink" href="rescue.html?to=0x7f3a1b9C4dE8821f3A0Cb9a2&chain=sepolia&amount=2" style="width:100%;display:block;text-align:center;">Help Them — pay with USDC on Arc</a>
+        <div style="font-size:12px;color:var(--text-faint);margin-top:12px;font-family:'JetBrains Mono',monospace;text-align:center;">Live testnet rescue · Arc → Sepolia</div>
       </div>
     </div>
   </div>
@@ -440,17 +442,6 @@
   </div>
 </section>
 
-<section class="final-cta">
-  <div class="wrap">
-    <h2>Never let a wallet get stuck again.</h2>
-    <p>helpThem is in early build. Get notified when rescues go live.</p>
-    <div class="email-row">
-      <input type="email" id="emailInput" placeholder="you@wallet.eth">
-      <button class="btn btn-primary" onclick="joinWaitlist()">Join waitlist</button>
-    </div>
-    <div class="email-msg" id="emailMsg"></div>
-  </div>
-</section>
 
 <footer>
   <div class="wrap">
@@ -513,36 +504,41 @@
     chip.classList.add('sel');
   });
 
+  let lastRescueUrl = '';
+
+  function buildRescueUrl(wallet, chain, amount){
+    const params = new URLSearchParams({ to: wallet, chain, amount: amount || '2' });
+    return 'rescue.html?' + params.toString();
+  }
+
   function generateLink(){
-    const id = Math.random().toString(36).slice(2,8);
+    const wallet = document.getElementById('walletInput').value.trim();
     const chain = document.querySelector('.chain-chip.sel').dataset.chain;
     const out = document.getElementById('linkOut');
     const linkText = document.getElementById('linkText');
-    linkText.textContent = `helpthem.xyz/rescue/${id}  (${chain})`;
+    const openLink = document.getElementById('openRescueLink');
+
+    if(!wallet.startsWith('0x') || wallet.length < 10){
+      linkText.innerHTML = '<span style="color:var(--empty)">Enter a valid wallet address first.</span>';
+      out.classList.add('show');
+      return;
+    }
+
+    lastRescueUrl = buildRescueUrl(wallet, chain);
+    linkText.innerHTML = '<a href="' + lastRescueUrl + '">' + lastRescueUrl + '</a>';
+    openLink.href = lastRescueUrl;
     out.classList.add('show');
   }
 
-  function runHelp(){
-    const status = document.getElementById('helpStatus');
-    status.style.display = 'flex';
-    status.innerHTML = '<span class="spin"></span> Helping…';
-    setTimeout(()=>{
-      status.innerHTML = '✅ Rescued. Syahrul is back online.';
-      status.style.color = 'var(--full)';
-    }, 1600);
-  }
-
-  function joinWaitlist(){
-    const input = document.getElementById('emailInput');
-    const msg = document.getElementById('emailMsg');
-    if(!input.value.includes('@')){
-      msg.textContent = 'Enter a valid email.';
-      msg.style.color = 'var(--empty)';
-      return;
-    }
-    msg.textContent = "You're on the list. We'll ping you at launch.";
-    msg.style.color = 'var(--full)';
-    input.value = '';
+  function copyLink(e){
+    if(!lastRescueUrl) return;
+    const fullUrl = new URL(lastRescueUrl, window.location.href).href;
+    navigator.clipboard.writeText(fullUrl).then(()=>{
+      const btn = e.target;
+      const prev = btn.textContent;
+      btn.textContent = 'Copied ✓';
+      setTimeout(()=>{ btn.textContent = prev; }, 1500);
+    });
   }
 
   // count-up stats on scroll into view
